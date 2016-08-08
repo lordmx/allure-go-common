@@ -6,7 +6,8 @@ import (
     "bytes"
     "errors"
 //    "mime"
-    "code.google.com/p/go-uuid/uuid"
+//    "code.google.com/p/go-uuid/uuid"
+    uuid "github.com/satori/go.uuid"
     "io/ioutil"
     "path/filepath"
     "os"
@@ -118,7 +119,7 @@ func getBufferInfo(buf bytes.Buffer, typ string) (string,string) {
 }
 
 func writeBuffer(pathDir string,buf bytes.Buffer,ext string) (string,error) {
-    fileName := uuid.New()+`-attachment.`+ext
+    fileName := uuid.NewV4()+`-attachment.`+ext
     err := ioutil.WriteFile(filepath.Join(pathDir,fileName),buf.Bytes(),os.O_CREATE|os.O_WRONLY)
     return fileName,err
 }
@@ -128,5 +129,5 @@ func writeSuite(pathDir string,suite *beans.Suite) error {
     if err != nil {
         return err
     }
-    return ioutil.WriteFile(filepath.Join(pathDir,uuid.New()+`-testsuite.xml`),bytes,os.O_CREATE|os.O_WRONLY)
+    return ioutil.WriteFile(filepath.Join(pathDir,uuid.NewV4()+`-testsuite.xml`),bytes,os.O_CREATE|os.O_WRONLY)
 }
