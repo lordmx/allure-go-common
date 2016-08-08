@@ -34,7 +34,7 @@ func NewSuite(name string,start time.Time) *Suite {
 }
 
 // set end time for suite
-func (s *Suite) End(endTime time.Time) {
+func (s *Suite) EndSuite(endTime time.Time) {
 	if !endTime.IsZero() {
 		//strict UTC
 		s.End = endTime.UTC().Unix()
@@ -49,6 +49,10 @@ func (s Suite) HasTests() bool {
 }
 
 //add test in suite
-func (s *Suite) AddTest(test TestCase) {
+func (s *Suite) AddTest(test *TestCase) {
+	if len(s.TestCases) > 0 {
+                test.Prev = s.TestCases[len(s.TestCases) - 1]
+        }
+
 	s.TestCases = append(s.TestCases, test)
 }

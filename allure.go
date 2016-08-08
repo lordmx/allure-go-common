@@ -1,7 +1,7 @@
 package allure
 
 import (
-    "github.com/GabbyyLS/allure-go-common/beans"
+    "github.com/lordmx/allure-go-common/beans"
     "time"
     "bytes"
     "errors"
@@ -10,7 +10,7 @@ import (
     uuid "github.com/satori/go.uuid"
     "io/ioutil"
     "path/filepath"
-    "os"
+//    "os"
     "encoding/xml"
 )
 
@@ -38,7 +38,7 @@ func (a *Allure) StartSuite(name string,start time.Time) {
 
 func (a *Allure) EndSuite (end time.Time) {
     suite := a.GetCurrentSuite()
-    suite.End(end)
+    suite.EndSuite(end)
     if(suite.HasTests()) {
         writeSuite(a.TargetDir,suite)
     }
@@ -68,7 +68,7 @@ func (a *Allure) EndCase (status string, err error, end time.Time) {
     test, ok := currentState[suite]
     if ok {
         test.End(status,err,end)
-        currentState[suite]
+        currentState[suite] = test.Prev
     }
 }
 
@@ -83,12 +83,19 @@ func (a *Allure) CreateStep(name string, stepFunc func() ) {
 
 func (a *Allure) StartStep (stepName string, start time.Time) {
     var (
-        step = beans.NewStep(stepName, start)
         suite = a.GetCurrentSuite()
     )
 
-    step = currentStep[suite]
-    step.Parent.AddStep(step)
+    step := currentStep[suite]
+
+    if step == nil {
+	step = beans.NewStep(stepName, start)
+    }
+
+    if step.Parent != nil {
+   	 step.Parent.AddStep(step)
+    }
+
     currentStep[suite] = step
 }
 
@@ -101,7 +108,7 @@ func (a *Allure) EndStep (status string, end time.Time) {
 func (a *Allure) AddAttachment (attachmentName, buf bytes.Buffer, typ string) {
     mime,ext := getBufferInfo(buf,typ)
     name,_ := writeBuffer(a.TargetDir,buf,ext)
-    currentState[a.GetCurrentSuite()].AddAttachment(beans.NewAttachment(attachmentName,mime,name,buf.Len()))
+    currentState[a.GetCurrentSuite()].AddAttachment(beans.NewAttachment(attachmentName.String(),mime,name,buf.Len()))
 }
 
 func (a *Allure) PendingCase(testName string, start time.Time) {
@@ -119,8 +126,8 @@ func getBufferInfo(buf bytes.Buffer, typ string) (string,string) {
 }
 
 func writeBuffer(pathDir string,buf bytes.Buffer,ext string) (string,error) {
-    fileName := uuid.NewV4()+`-attachment.`+ext
-    err := ioutil.WriteFile(filepath.Join(pathDir,fileName),buf.Bytes(),os.O_CREATE|os.O_WRONLY)
+    fileName := uuid.NewV4().String()+`-attachment.`+ext
+    err := ioutil.WriteFile(filepath.Join(pathDir,fileName),buf.Bytes(),0777)
     return fileName,err
 }
 
@@ -129,5 +136,5 @@ func writeSuite(pathDir string,suite *beans.Suite) error {
     if err != nil {
         return err
     }
-    return ioutil.WriteFile(filepath.Join(pathDir,uuid.NewV4()+`-testsuite.xml`),bytes,os.O_CREATE|os.O_WRONLY)
+    return ioutil.WriteFile(filepath.Join(pathDir,uuid.NewV4().String()+`-testsuite.xml`),bytes,0777)
 }

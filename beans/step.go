@@ -21,8 +21,8 @@ type Step struct {
 	Parent      *Step         `xml:"-"`
 
 	Status      string        `xml:"status,attr"`
-	Start       int16         `xml:"start,attr"`
-	Stop        int16         `xml:"stop,attr"`
+	Start       int64         `xml:"start,attr"`
+	Stop        int64         `xml:"stop,attr"`
 	Name        string        `xml:"name"`
 	Steps       []*Step       `xml:"steps"`
 	Attachments []*Attachment `xml:"attachments"`
