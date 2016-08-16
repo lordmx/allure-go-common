@@ -11,7 +11,7 @@ type TestCase struct {
 	Stop        int64         `xml:"stop,attr"`
 	Name        string        `xml:"name"`
 	Steps       []*Step       `xml:"steps>step"`
-	Labels      []*Label      `xml:"labels"`
+	Labels      []*Label      `xml:"labels>label"`
 	Attachments []*Attachment `xml:"attachments>attachment"`
 	Desc        string        `xml:"description"`
 	Prev        *TestCase
