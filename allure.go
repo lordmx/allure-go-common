@@ -1,17 +1,17 @@
 package allure
 
 import (
-    "github.com/lordmx/allure-go-common/beans"
-    "time"
-    "bytes"
-    "errors"
-//    "mime"
-//    "code.google.com/p/go-uuid/uuid"
-    uuid "github.com/satori/go.uuid"
-    "io/ioutil"
-    "path/filepath"
-//    "os"
-    "encoding/xml"
+	"bytes"
+	"errors"
+	"github.com/lordmx/allure-go-common/beans"
+	"time"
+	//    "mime"
+	//    "code.google.com/p/go-uuid/uuid"
+	uuid "github.com/satori/go.uuid"
+	"io/ioutil"
+	"path/filepath"
+	//    "os"
+	"encoding/xml"
 )
 
 //
@@ -30,111 +30,114 @@ func (a *Allure) GetCurrentSuite() *beans.Suite {
 	return a.Suites[0]
 }
 
-
-func (a *Allure) StartSuite(name string,start time.Time) {
-    a.Suites = append(a.Suites,beans.NewSuite(name,start))
+func (a *Allure) StartSuite(name string, start time.Time) {
+	a.Suites = append(a.Suites, beans.NewSuite(name, start))
 }
 
-
-func (a *Allure) EndSuite (end time.Time) {
-    suite := a.GetCurrentSuite()
-    suite.EndSuite(end)
-    if(suite.HasTests()) {
-        writeSuite(a.TargetDir,suite)
-    }
-    //remove first/current suite
-    a.Suites = a.Suites[1:]
+func (a *Allure) EndSuite(end time.Time) {
+	suite := a.GetCurrentSuite()
+	suite.EndSuite(end)
+	if suite.HasTests() {
+		writeSuite(a.TargetDir, suite)
+	}
+	//remove first/current suite
+	a.Suites = a.Suites[1:]
 }
 
 var currentState = map[*beans.Suite]*beans.TestCase{}
 var currentStep = map[*beans.Suite]*beans.Step{}
 
-func (a *Allure) StartCase (testName string, start time.Time) {
-    var (
-        test = beans.NewTestCase(testName, start)
-        step = beans.NewStep(testName, start)
-        suite = a.GetCurrentSuite()
-    )
+func (a *Allure) StartCase(testName string, start time.Time) {
+	var (
+		test  = beans.NewTestCase(testName, start)
+		step  = beans.NewStep(testName, start)
+		suite = a.GetCurrentSuite()
+	)
 
-    currentState[suite] = test
-    //strange logic((((
-    currentStep[suite] = step
+	currentState[suite] = test
+	//strange logic((((
+	currentStep[suite] = step
 
-    suite.AddTest(test)
+	suite.AddTest(test)
 }
 
-func (a *Allure) EndCase (status string, err error, end time.Time) {
-    suite := a.GetCurrentSuite()
-    test, ok := currentState[suite]
-    if ok {
-        test.End(status,err,end)
-        currentState[suite] = test.Prev
-    }
+func (a *Allure) AddLabel(name, value string) {
+	suite := a.GetCurrentSuite()
+	currentState[suite].AddLabel(&beans.Label{name, value})
 }
 
-func (a *Allure) CreateStep(name string, stepFunc func() ) {
-    status := `passed`
-    a.StartStep(name,time.Now())
-    // if test error
-    stepFunc()
-    //end
-    a.EndStep(status,time.Now())
+func (a *Allure) EndCase(status string, err error, end time.Time) {
+	suite := a.GetCurrentSuite()
+	test, ok := currentState[suite]
+	if ok {
+		test.End(status, err, end)
+		currentState[suite] = test.Prev
+	}
 }
 
-func (a *Allure) StartStep (stepName string, start time.Time) {
-    var (
-        suite = a.GetCurrentSuite()
-    )
-
-    step := currentStep[suite]
-
-    if step == nil {
-	step = beans.NewStep(stepName, start)
-    }
-
-    if step.Parent != nil {
-   	 step.Parent.AddStep(step)
-    }
-
-    currentStep[suite] = step
+func (a *Allure) CreateStep(name string, stepFunc func()) {
+	status := `passed`
+	a.StartStep(name, time.Now())
+	// if test error
+	stepFunc()
+	//end
+	a.EndStep(status, time.Now())
 }
 
-func (a *Allure) EndStep (status string, end time.Time) {
-    suite := a.GetCurrentSuite()
-    currentStep[suite].End(status, end)
-    currentStep[suite] = currentStep[suite].Parent
+func (a *Allure) StartStep(stepName string, start time.Time) {
+	var (
+		suite = a.GetCurrentSuite()
+	)
+
+	step := currentStep[suite]
+
+	if step == nil {
+		step = beans.NewStep(stepName, start)
+	}
+
+	if step.Parent != nil {
+		step.Parent.AddStep(step)
+	}
+
+	currentStep[suite] = step
 }
 
-func (a *Allure) AddAttachment (attachmentName, buf bytes.Buffer, typ string) {
-    mime,ext := getBufferInfo(buf,typ)
-    name,_ := writeBuffer(a.TargetDir,buf,ext)
-    currentState[a.GetCurrentSuite()].AddAttachment(beans.NewAttachment(attachmentName.String(),mime,name,buf.Len()))
+func (a *Allure) EndStep(status string, end time.Time) {
+	suite := a.GetCurrentSuite()
+	currentStep[suite].End(status, end)
+	currentStep[suite] = currentStep[suite].Parent
+}
+
+func (a *Allure) AddAttachment(attachmentName, buf bytes.Buffer, typ string) {
+	mime, ext := getBufferInfo(buf, typ)
+	name, _ := writeBuffer(a.TargetDir, buf, ext)
+	currentState[a.GetCurrentSuite()].AddAttachment(beans.NewAttachment(attachmentName.String(), mime, name, buf.Len()))
 }
 
 func (a *Allure) PendingCase(testName string, start time.Time) {
-    a.StartCase(testName, start)
-    a.EndCase("pending", errors.New("Test ignored"), start)
+	a.StartCase(testName, start)
+	a.EndCase("pending", errors.New("Test ignored"), start)
 }
 
 //utils
-func getBufferInfo(buf bytes.Buffer, typ string) (string,string) {
-//    exts,err := mime.ExtensionsByType(typ)
-//    if err != nil {
-//        mime.ParseMediaType()
-//    }
-    return "text/plain","txt"
+func getBufferInfo(buf bytes.Buffer, typ string) (string, string) {
+	//    exts,err := mime.ExtensionsByType(typ)
+	//    if err != nil {
+	//        mime.ParseMediaType()
+	//    }
+	return "text/plain", "txt"
 }
 
-func writeBuffer(pathDir string,buf bytes.Buffer,ext string) (string,error) {
-    fileName := uuid.NewV4().String()+`-attachment.`+ext
-    err := ioutil.WriteFile(filepath.Join(pathDir,fileName),buf.Bytes(),0777)
-    return fileName,err
+func writeBuffer(pathDir string, buf bytes.Buffer, ext string) (string, error) {
+	fileName := uuid.NewV4().String() + `-attachment.` + ext
+	err := ioutil.WriteFile(filepath.Join(pathDir, fileName), buf.Bytes(), 0777)
+	return fileName, err
 }
 
-func writeSuite(pathDir string,suite *beans.Suite) error {
-    bytes, err := xml.Marshal(suite)
-    if err != nil {
-        return err
-    }
-    return ioutil.WriteFile(filepath.Join(pathDir,uuid.NewV4().String()+`-testsuite.xml`),bytes,0777)
+func writeSuite(pathDir string, suite *beans.Suite) error {
+	bytes, err := xml.Marshal(suite)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filepath.Join(pathDir, uuid.NewV4().String()+`-testsuite.xml`), bytes, 0777)
 }
